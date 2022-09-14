@@ -1,112 +1,66 @@
-import { Play } from "phosphor-react";
-import { useForm } from "react-hook-form";
+import { HandPalm, Play } from "phosphor-react";
+import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as zod from 'zod';
+import * as zod from 'zod'
 import { 
-  CountdownContainer, 
-  FormContainer, 
-  HomeContainer, 
-  MinutesAmountInput, 
-  Separator, 
+  HomeContainer,  
   StartCountdownButton, 
-  TaskInput 
+  StopCountdownButton,
 } from "./styles";
-import { useState } from "react";
+import { NewCycleForm } from "./components/NewCycleForm";
+import { Countdown } from "./components/Countdown";
+import { CycleContext } from "../../contexts/CyclesContext";
+import { useContext } from "react";
 
 const newCicleFormValidationSchema = zod.object({
   task: zod.string().min(1, "Informe a tarefa"),
-  minutesAmount: zod
-    .number()
+  minutesAmount: zod.number()
     .min(5, "O ciclo precisa ser de no minimo 5 minutos")
     .max(60, "O ciclo precisa ser de no maximo 60 minutos"),
 })
 
-type NewCicleFormData = zod.infer<typeof newCicleFormValidationSchema>
-
-interface Cycle {
-  id: string;
-  task: string;
-  minutesAmount: number
-}
+type NewCycleFormData = zod.infer<typeof newCicleFormValidationSchema>
 
 export function Home() {
-  const [ cycles, setCycles ] = useState<Cycle[]>([])
-  const [ activeCycleId, setActiveCycleId ] = useState<string | null>(null)
+  const { createNewCycle, interruptCurrentCycle, activeCycle } = useContext(CycleContext)
 
-  const { register, handleSubmit, watch, reset } = useForm<NewCicleFormData>({
+  const newCycleForm = useForm<NewCycleFormData>({
     resolver: zodResolver(newCicleFormValidationSchema),
     defaultValues: {
       task: '',
       minutesAmount: 0,
     }
   });
-
-  const activeCycle = cycles.find(cycle => cycle.id == activeCycleId)
+  const { handleSubmit, watch, reset } = newCycleForm
 
   const task = watch("task");
   const isSubmitDisabled = !task
 
-  const handleCreateNewCicle = (data: NewCicleFormData) => {
-    const id = String(new Date().getTime())
 
-    const newCycle: Cycle = {
-      id,
-      task: data.task,
-      minutesAmount: data.minutesAmount
-    }
-
-    setCycles(state => [...state, newCycle])
-    setActiveCycleId(id)
-
+  const handleCreateNewCycle = (data: NewCycleFormData) => {
+    createNewCycle(data)
     reset()
   }
 
   return (
     <HomeContainer>
-      <form onSubmit={handleSubmit(handleCreateNewCicle)}>
-        <FormContainer>
-          <label htmlFor="task">Vou trabalhar em</label>
-          <TaskInput 
-            type="text" 
-            id='task' 
-            list='task-suggestions'
-            placeholder="Dê um nome para o seu projeto" 
-            {...register("task")}
-          />
+      <form onSubmit={handleSubmit(handleCreateNewCycle)}>
+        <FormProvider {...newCycleForm} >
+          <NewCycleForm />
+        </FormProvider>
+        <Countdown />
 
-          <datalist id='task-suggestions'>
-            <option value="Projeto 01"/>
-            <option value="Projeto 02"/>
-            <option value="Projeto 03"/>
-            <option value="Nothing"/>
-          </datalist>
-
-          <label htmlFor="minutesAmount">durante</label>
-          <MinutesAmountInput 
-            type="number" 
-            step={5}
-            min={5}
-            max={60}
-            id="minutesAmount" 
-            placeholder="00"
-            {...register("minutesAmount")}
-            />
-
-          <span>minutos.</span>
-        </FormContainer>
-
-        <CountdownContainer>
-          <span>0</span>
-          <span>0</span>
-          <Separator>:</Separator>
-          <span>0</span>
-          <span>0</span>
-        </CountdownContainer>
-
+        {activeCycle ? (
+          <StopCountdownButton onClick={interruptCurrentCycle} type="button">
+            <HandPalm size={24} />
+            Interromper
+          </StopCountdownButton>
+        ) : (
         <StartCountdownButton disabled={isSubmitDisabled} type="submit">
           <Play size={24} />
           Começar
         </StartCountdownButton>
+        )}
       </form>
     </HomeContainer>
   )
